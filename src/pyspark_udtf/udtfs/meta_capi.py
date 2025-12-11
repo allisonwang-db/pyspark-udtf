@@ -3,6 +3,7 @@ import requests
 from pyspark.sql.functions import udtf
 from pyspark.sql.types import Row
 from typing import Optional, Any
+from .mapping_engine import MappingEngine
 
 class MetaCAPILogic:
     """
@@ -12,9 +13,10 @@ class MetaCAPILogic:
     and sends them in batches to Meta's Graph API.
     
     Input Arguments:
-    - row (Row): Row from the input table. Must contain 'event_payload' (str).
+    - row (Row): Row from the input table.
     - pixel_id (str): The Meta Pixel ID.
     - access_token (str): The System User Access Token.
+    - mapping_yaml (str): YAML string defining the mapping from input columns to CAPI event fields.
     - test_event_code (str, optional): Code for testing events in Events Manager.
     
     Output Columns:
@@ -23,6 +25,34 @@ class MetaCAPILogic:
     - events_failed (int): Number of events failed in this batch.
     - fbtrace_id (str): Trace ID for debugging.
     - error_message (str): Error details if failed.
+
+    Example Usage:
+    
+    ```python
+    from pyspark_udtf.udtfs.meta_capi import WriteToMetaCAPI
+    spark.udtf.register("write_to_meta_capi", WriteToMetaCAPI)
+    
+    yaml_mapping = '''
+    event_name: "Purchase"
+    event_time: 
+      source: "ts"
+      transform: "to_epoch"
+    user_data:
+      em: 
+        source: "email"
+        transform: ["normalize_email", "sha256"]
+    '''
+    
+    spark.sql(f'''
+        SELECT * 
+        FROM write_to_meta_capi(
+            TABLE(input_df), 
+            'YOUR_PIXEL_ID', 
+            'YOUR_ACCESS_TOKEN', 
+            '{yaml_mapping}'
+        )
+    ''')
+    ```
     """
 
     def __init__(self):
@@ -31,54 +61,43 @@ class MetaCAPILogic:
         # API parameters are set on the first eval call or if they change
         self.current_pixel_id = None
         self.current_access_token = None
+        self.current_mapping_yaml = None
         self.current_test_event_code = None
+        
+        self.mapping_engine = None
         # API Version
         self.api_version = "v20.0"
 
-    def eval(self, row: Row, pixel_id: str, access_token: str, test_event_code: Optional[str] = None):
+    def eval(self, row: Row, pixel_id: str, access_token: str, mapping_yaml: str, test_event_code: Optional[str] = None):
         """
         Processes each row from the input table.
-        Arguments:
-            row: The input row from the table. Expected to have 'event_payload' field.
-            pixel_id: Meta Pixel ID (scalar).
-            access_token: Access Token (scalar).
-            test_event_code: Optional test event code (scalar).
         """
-        # If credentials change, flush the existing buffer. 
+        # If credentials or mapping change, flush the existing buffer. 
         if self.buffer and (
             pixel_id != self.current_pixel_id or 
             access_token != self.current_access_token or 
+            mapping_yaml != self.current_mapping_yaml or
             test_event_code != self.current_test_event_code
         ):
             yield from self._flush()
+        
+        # Initialize or update mapping engine if yaml changed
+        if mapping_yaml != self.current_mapping_yaml:
+            self.mapping_engine = MappingEngine(mapping_yaml)
+            self.current_mapping_yaml = mapping_yaml
         
         self.current_pixel_id = pixel_id
         self.current_access_token = access_token
         self.current_test_event_code = test_event_code
         
-        # Extract event payload from the row
-        if not hasattr(row, 'event_payload'):
-             yield "failed", 0, 1, None, "Input table row missing 'event_payload' column."
-             return
-
-        event_payload = row.event_payload
-        
         try:
-            # If payload is already a dict/map in Spark, row.event_payload might be a dict. 
-            if isinstance(event_payload, str):
-                event_data = json.loads(event_payload)
-            else:
-                # Assume it's already a dict or Row that can be converted
-                if hasattr(event_payload, "asDict"):
-                    event_data = event_payload.asDict(recursive=True)
-                elif isinstance(event_payload, dict):
-                    event_data = event_payload
-                else:
-                    raise ValueError(f"Unsupported payload type: {type(event_payload)}")
-
-            self.buffer.append(event_data)
+            # Use MappingEngine to transform row
+            event_data = self.mapping_engine.transform_row(row)
+            if event_data:
+                self.buffer.append(event_data)
         except Exception as e:
-            yield "failed", 0, 1, None, f"Invalid payload: {str(e)}"
+            # Yield failure for specific row mapping error
+            yield "failed", 0, 1, None, f"Mapping error: {str(e)}"
             return
 
         if len(self.buffer) >= self.batch_size:
@@ -129,7 +148,7 @@ class MetaCAPILogic:
         self.buffer = []
 
 @udtf(returnType="status: string, events_received: int, events_failed: int, fbtrace_id: string, error_message: string")
-class MetaCAPI(MetaCAPILogic):
+class WriteToMetaCAPI(MetaCAPILogic):
     """
     Spark UDTF wrapper for MetaCAPILogic.
     """

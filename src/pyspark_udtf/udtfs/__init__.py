@@ -1,4 +1,4 @@
 from .image_caption import BatchInferenceImageCaption
-from .meta_capi import MetaCAPI
+from .meta_capi import WriteToMetaCAPI
 
-__all__ = ["BatchInferenceImageCaption", "MetaCAPI"]
+__all__ = ["BatchInferenceImageCaption", "WriteToMetaCAPI"]
