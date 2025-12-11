@@ -31,6 +31,9 @@ spark = SparkSession.builder.getOrCreate()
 # Register the UDTF
 spark.udtf.register("batch_image_caption", BatchInferenceImageCaption)
 
+# View UDTF definition and parameters
+help(BatchInferenceImageCaption.func)
+
 # Usage in SQL
 # Assuming you have a table 'images' with a column 'url'
 spark.sql("""
@@ -42,23 +45,6 @@ spark.sql("""
         'https://your-endpoint.com/score'
     )
 """).show()
-
-# Usage in Python API
-from pyspark.sql.functions import lit
-
-images_df = spark.createDataFrame([
-    ("http://example.com/image1.jpg",),
-    ("http://example.com/image2.jpg",)
-], ["url"])
-
-# Use the UDTF class directly
-output_df = BatchInferenceImageCaption(
-    lit(10), 
-    lit("your-api-token"), 
-    lit("https://your-endpoint.com/score")
-).func(images_df.select("url"))
-# Note: Syntax for direct class usage might vary depending on PySpark 4.0 API specifics for UDTFs.
-# The standard way is via SQL or registering it.
 ```
 
 ## Available UDTFs
@@ -67,13 +53,14 @@ output_df = BatchInferenceImageCaption(
 
 Performs batch inference for image captioning.
 
-**Arguments:**
-- `batch_size` (int): Number of images to process in a single batch.
-- `token` (str): API token for authentication.
-- `endpoint` (str): The model serving endpoint URL.
+**Arguments (SQL):**
+1. `TABLE(input)`: The input table containing image URLs.
+2. `batch_size` (int): Number of images to process in a single batch.
+3. `token` (str): API token for authentication.
+4. `endpoint` (str): The model serving endpoint URL.
 
 **Input:**
-- A table with image URLs (or other input data expected by your model).
+- A table with image URLs (column name maps to the first argument of the eval method).
 
 **Output:**
 - A struct containing the `caption` (string).
@@ -89,4 +76,3 @@ Performs batch inference for image captioning.
    ```bash
    pytest
    ```
-

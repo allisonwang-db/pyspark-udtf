@@ -15,17 +15,28 @@ class BatchInferenceImageCaptionLogic:
         endpoint (str): The model serving endpoint URL.
     """
     
-    def __init__(self, batch_size: int, token: str, endpoint: str):
-        self.batch_size = batch_size
-        self.token = token
-        self.endpoint = endpoint
+    def __init__(self):
+        self.batch_size = None
+        self.token = None
+        self.endpoint = None
         self.buffer = []
 
-    def eval(self, url: str):
+    def eval(self, row: Row, batch_size: int, token: str, endpoint: str):
         """
         Processes each row. Buffers the image URL and triggers batch processing
         when the buffer size reaches the configured batch_size.
         """
+        if self.batch_size is None:
+            self.batch_size = batch_size
+            self.token = token
+            self.endpoint = endpoint
+        
+        # Handle input row: assume the first column is the URL
+        if hasattr(row, "__getitem__") and not isinstance(row, str):
+            url = row[0]
+        else:
+            url = row
+
         self.buffer.append(url)
         if len(self.buffer) >= self.batch_size:
             yield from self.process_batch()
