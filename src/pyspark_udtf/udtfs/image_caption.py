@@ -5,113 +5,95 @@ from pyspark.sql.functions import udtf
 from pyspark.sql.types import Row, StringType, StructType, StructField
 from ..utils.version_check import check_version_compatibility
 
-class BatchInferenceImageCaptionLogic:
-    """
-    A UDTF that generates image captions using batch inference.
-    
-    Args:
-        batch_size (int): Number of images to process in a single batch.
-        token (str): API token for authentication.
-        endpoint (str): The model serving endpoint URL.
-    """
-    
+check_version_compatibility("3.5")
+
+class BatchInferenceImageCaptioLogic:
     def __init__(self):
-        self.batch_size = None
-        self.token = None
-        self.endpoint = None
-        self.buffer = []
-
-    def eval(self, row: Row, batch_size: int, token: str, endpoint: str):
-        """
-        Processes each row. Buffers the image URL and triggers batch processing
-        when the buffer size reaches the configured batch_size.
-        """
-        if self.batch_size is None:
-            self.batch_size = batch_size
-            self.token = token
-            self.endpoint = endpoint
+        self.batch_size = 3
+        self.vision_endpoint = "databricks-claude-3-7-sonnet"
+        self.workspace_url = "<workspace-url>"
+        self.image_buffer = []
+        self.results = []
         
-        # Handle input row: assume the first column is the URL
-        if hasattr(row, "__getitem__") and not isinstance(row, str):
-            url = row[0]
-        else:
-            url = row
-
-        self.buffer.append(url)
-        if len(self.buffer) >= self.batch_size:
-            yield from self.process_batch()
-
+    def eval(self, row, api_token):
+        self.image_buffer.append((str(row[0]), api_token))
+        if len(self.image_buffer) >= self.batch_size:
+            self._process_batch()
+    
     def terminate(self):
-        """
-        Called when all rows have been processed.
-        Processes any remaining items in the buffer.
-        """
-        if self.buffer:
-            yield from self.process_batch()
+        if self.image_buffer:
+            self._process_batch()
+        for caption in self.results:
+            yield (caption,)
+    
+    def _process_batch(self):
+        batch_data = self.image_buffer.copy()
+        self.image_buffer.clear()
+        
+        import base64
+        import httpx
+        import requests
 
-    def process_batch(self) -> Iterator[Row]:
-        """
-        sends a batch of images to the model serving endpoint.
-        """
-        if not self.buffer:
-            return
-
-        headers = {
-            "Authorization": f"Bearer {self.token}",
-            "Content-Type": "application/json"
+        # API request timeout in seconds
+        api_timeout = 60
+        # Maximum tokens for vision model response
+        max_response_tokens = 300
+        # Temperature controls randomness (lower = more deterministic)
+        model_temperature = 0.3
+        
+        # create a batch for the images
+        batch_images = []
+        api_token = batch_data[0][1] if batch_data else None
+        
+        for image_url, _ in batch_data:
+            image_response = httpx.get(image_url, timeout=15)
+            image_data = base64.standard_b64encode(image_response.content).decode("utf-8")
+            batch_images.append(image_data)
+        
+        content_items = [{
+            "type": "text",
+            "text": "Provide brief captions for these images, one per line."
+        }]
+        for img_data in batch_images:
+            content_items.append({
+                "type": "image_url",
+                "image_url": {
+                    "url": "data:image/jpeg;base64," + img_data
+                }
+            })
+        
+        payload = {
+            "messages": [{
+                "role": "user",
+                "content": content_items
+            }],
+            "max_tokens": max_response_tokens,
+            "temperature": model_temperature
         }
         
-        try:
-            # Simplified payload structure matching common serving endpoints
-            payload = {
-                "inputs": self.buffer
-            }
-            
-            response = requests.post(
-                self.endpoint,
-                headers=headers,
-                json=payload
-            )
-            response.raise_for_status()
-            
-            # Assuming response JSON contains a list of predictions/captions
-            predictions = response.json().get('predictions', [])
-            
-            if len(predictions) != len(self.buffer):
-                # Fallback if lengths mismatch
-                for _ in self.buffer:
-                    yield Row(caption="Error: API response mismatch")
-            else:
-                for caption in predictions:
-                    yield Row(caption=str(caption))
-                    
-        except Exception as e:
-            error_msg = f"Error processing batch: {str(e)}"
-            for _ in self.buffer:
-                yield Row(caption=error_msg)
-        finally:
-            self.buffer = []
+        response = requests.post(
+            self.workspace_url + "/serving-endpoints/" +
+            self.vision_endpoint + "/invocations",
+            headers={
+                'Authorization': 'Bearer ' + api_token,
+                'Content-Type': 'application/json'
+            },
+            json=payload,
+            timeout=api_timeout
+        )
+        
+        result = response.json()
+        batch_response = result['choices'][0]['message']['content'].strip()
+        
+        lines = batch_response.split('\n')
+        captions = [line.strip() for line in lines if line.strip()]
+        
+        while len(captions) < len(batch_data):
+            captions.append(batch_response)
+        
+        self.results.extend(captions[:len(batch_data)])
 
-# Standard UDTF registration (Works on PySpark 4.0+)
 BatchInferenceImageCaption = udtf(
     BatchInferenceImageCaptionLogic, 
     returnType=StructType([StructField("caption", StringType())])
 )
-
-# Optional Arrow UDTF registration (Requires PySpark 4.2+)
-try:
-    from pyspark.sql.functions import arrow_udtf
-    ArrowBatchInferenceImageCaption = arrow_udtf(
-        BatchInferenceImageCaptionLogic, 
-        returnType=StructType([StructField("caption", StringType())])
-    )
-except ImportError:
-    # If arrow_udtf is missing, check if it's due to old PySpark version
-    if not check_version_compatibility("4.2"):
-        # We silently skip defining the Arrow variant on older versions
-        # to maintain compatibility with PySpark 4.0/4.1.
-        # If we were strictly enforcing this feature, we would raise an exception here.
-        pass
-    else:
-        # If version is >= 4.2 but import failed, re-raise
-        raise
