@@ -9,22 +9,24 @@ description: Generates PySpark User-Defined Table Functions (UDTFs) from descrip
 
 Follow this workflow to create a high-quality PySpark UDTF.
 
-### 1. Analyze Complexity
+### 1. Analyze Requirements
 
-Determine if the requested UDTF is **Simple** or **Complex**.
+Understand the user's request. Determine the inputs, outputs, and necessary external dependencies.
 
-*   **Simple**: Basic transformation, no external dependencies, stateless or simple state.
-    *   *Action*: Proceed directly to Implementation.
-*   **Complex**: External API calls, complex state management, custom buffering, dynamic schema based on arguments.
-    *   *Action*: Create a design doc first.
+### 2. Design (Required)
 
-### 2. Design (For Complex UDTFs)
+Create a design document in `docs/design/<udtf_name>.md`. **This is required for ALL UDTFs.**
 
-Create a design document in `docs/design/<udtf_name>.md`. Formulate the design document structure based on the user's request and the complexity of the UDTF.
-
-*   Outline the `analyze` (if needed), `eval`, and `terminate` logic.
-*   Define input arguments and output schema.
-*   Ask the user to review the design before coding.
+*   **Content**:
+    *   **Overview**: Brief description of what the UDTF does.
+    *   **Usage Example**: A **copy-pastable** Python snippet demonstrating how to register and call the UDTF.
+        *   **CRITICAL**: All variables in the example (e.g., input DataFrames, schema strings, mapping configurations) MUST be defined in the snippet. Do not use undefined variables like `df` or `schema` without showing their creation.
+        *   **Secrets**: Use placeholders for secrets (e.g., `'YOUR_API_KEY'`).
+    *   **API Specification**: detailed Input Arguments and Output Schema.
+    *   **Behavior**: High-level description of buffering, state management, or API interaction.
+*   **Constraints**:
+    *   **Avoid Implementation Details**: Do not write the full code or complex internal logic in the design doc. Focus on the interface and behavior.
+*   **Review**: Ask the user to review the design before coding.
 
 ### 3. Implementation
 
@@ -38,6 +40,7 @@ Create the UDTF file in `src/pyspark_udtf/udtfs/<udtf_name>.py`.
     *   Handle `TABLE` arguments (rows) efficiently.
     *   Use `terminate` for flushing buffers or cleaning up resources.
     *   **Self-Contained**: Keep the implementation in a single file if possible. Avoid creating separate utility files unless the logic is shared across multiple UDTFs or is extremely complex.
+    *   **Docstring**: Include the **copy-pastable usage example** from the design doc in the class docstring.
     *   **Note**: This skill is **NOT** for creating Unity Catalog (UC) Python UDTFs using `CREATE FUNCTION` syntax. A separate skill handles UC registration. Focus solely on the Python class implementation here.
 
 ### 4. Registration
