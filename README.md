@@ -114,6 +114,16 @@ uv run pytest
 uv run pytest tests/test_image_caption.py
 ```
 
+### Linting
+
+This project uses [Ruff](https://docs.astral.sh/ruff/) for linting and formatting. Install dev dependencies, then run:
+
+```bash
+uv sync --extra dev   # install ruff
+uv run ruff check .   # lint
+uv run ruff format .  # format
+```
+
 ### Adding Dependencies
 
 To add a new runtime dependency:
