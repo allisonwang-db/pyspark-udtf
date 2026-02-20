@@ -11,9 +11,9 @@ from .mapping_engine import MappingEngine
 
 def _partner_agent() -> str:
     try:
-        return f"pyspark-udtf/{_pkg_version('pyspark-udtf')}"
+        return f"databricks-pyspark-udtf/{_pkg_version('pyspark-udtf')}"
     except PackageNotFoundError:
-        return "pyspark-udtf/unknown"
+        return "databricks-pyspark-udtf/unknown"
 
 
 # Resolve once at import; used in CAPI payload.
