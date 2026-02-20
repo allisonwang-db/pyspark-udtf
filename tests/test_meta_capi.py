@@ -154,3 +154,4 @@ def test_udtf_mapping_error(udtf):
     assert "Mapping error" in err
     # PySpark 4.0+ error message
     assert "ATTRIBUTE_NOT_SUPPORTED" in err or "AttributeError" in err or "has no attribute" in err
+
