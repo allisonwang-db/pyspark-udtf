@@ -9,8 +9,3 @@ wheels/
 # Virtual environments
 .venv
 venv
-
-# Codex agent guidance
-!AGENTS.md
-!.agents/
-!.agents/**

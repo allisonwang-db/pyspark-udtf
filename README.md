@@ -108,8 +108,6 @@ For more detailed Python UDTF documentation, including design documents and guid
 
 Contributions are welcome. Read the [contributing guide](CONTRIBUTING.md) for development setup, testing requirements, and the process for proposing a new Python UDTF.
 
-For help using the project, see [support resources](SUPPORT.md). To report a vulnerability, follow the [security policy](SECURITY.md).
-
 ## Development
 
 We recommend using [uv](https://github.com/astral-sh/uv) for extremely fast package management.
