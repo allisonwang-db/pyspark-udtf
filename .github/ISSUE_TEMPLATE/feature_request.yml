@@ -1,0 +1,33 @@
+name: Feature request
+description: Propose a new Python UDTF or project improvement
+title: "[Feature]: "
+labels:
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: Thanks for suggesting an improvement. Search existing issues before submitting a new request.
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem or use case
+      description: Explain the data-processing need and who would benefit.
+    validations:
+      required: true
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: Describe the UDTF inputs, outputs, and expected behavior when applicable.
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Describe workarounds or other designs you considered.
+  - type: textarea
+    id: context
+    attributes:
+      label: Additional context
+      description: Add links, sample data, or pseudocode without including credentials or sensitive data.
