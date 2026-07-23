@@ -1,0 +1,7 @@
+interface:
+  display_name: "Release PySpark UDTF"
+  short_description: "Build and publish a pyspark-udtf release"
+  default_prompt: "Use $release-package to release the requested version of pyspark-udtf."
+
+policy:
+  allow_implicit_invocation: false

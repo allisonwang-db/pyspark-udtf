@@ -1,0 +1,7 @@
+interface:
+  display_name: "Create PySpark UDTF"
+  short_description: "Design, implement, and test a PySpark UDTF"
+  default_prompt: "Use $create-udtf to design, implement, and test a new PySpark UDTF."
+
+policy:
+  allow_implicit_invocation: true

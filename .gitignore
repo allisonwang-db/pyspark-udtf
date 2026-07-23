@@ -10,5 +10,7 @@ wheels/
 .venv
 venv
 
-# Cursor rules
-!.cursor/
+# Codex agent guidance
+!AGENTS.md
+!.agents/
+!.agents/**
