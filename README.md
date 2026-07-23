@@ -1,11 +1,23 @@
-# PySpark UDTF Examples
+# Python UDTF Examples for PySpark
 
 [![PyPI](https://img.shields.io/pypi/v/pyspark-udtf.svg)](https://pypi.org/project/pyspark-udtf/)
 [![uv](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/uv/main/assets/badge/v0.json)](https://github.com/astral-sh/uv)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
+Practical, tested Python UDTF (User-Defined Table Function) examples for Apache Spark and PySpark 4. Learn how to write, register, test, package, and run Python UDTFs for fuzzy matching, batch inference, reverse ETL, and Databricks Unity Catalog.
 
-A collection of Python User-Defined Table Functions (UDTFs) for PySpark, demonstrating how to leverage UDTFs for complex data processing tasks.
+## What is a Python UDTF?
+
+A Python UDTF transforms each input row into zero or more output rows. Unlike a scalar Python UDF, which returns one value per input row, a UDTF returns a table and can be called from Spark SQL with a `TABLE` argument. This repository provides reusable implementations and focused examples for common PySpark data-processing patterns.
+
+## Included examples
+
+| Example | Use case | Source |
+| --- | --- | --- |
+| Fuzzy matching | Find the closest candidate for a string and return its similarity score | [`fuzzy_match.py`](src/pyspark_udtf/udtfs/fuzzy_match.py) |
+| Batch image captioning | Buffer image URLs and send efficient batched requests to a model endpoint | [`image_caption.py`](src/pyspark_udtf/udtfs/image_caption.py) |
+| Meta Conversions API | Send conversion events from Spark as a reverse ETL workload | [`meta_capi.py`](src/pyspark_udtf/udtfs/meta_capi.py) |
+| Unity Catalog registration | Convert a PySpark UDTF into a governed Unity Catalog function | [Unity Catalog guide](docs/unity_catalog_udtf.md) |
 
 ## Installation
 
@@ -35,7 +47,7 @@ data = [
     ("aple", ["apple", "banana", "orange"]),
     ("bananna", ["apple", "banana", "orange"]),
     ("orange", ["apple", "banana", "orange"]),
-    ("grape", ["apple", "banana", "orange"]) 
+    ("grape", ["apple", "banana", "orange"])
 ]
 df = spark.createDataFrame(data, ["typo", "candidates"])
 
@@ -43,7 +55,7 @@ df = spark.createDataFrame(data, ["typo", "candidates"])
 df.createOrReplaceTempView("typos")
 
 spark.sql("""
-    SELECT * 
+    SELECT *
     FROM fuzzy_match(TABLE(SELECT typo, candidates FROM typos))
 """).show()
 ```
@@ -67,11 +79,11 @@ help(BatchInferenceImageCaption.func)
 # Usage in SQL
 # Assuming you have a table 'images' with a column 'url'
 spark.sql("""
-    SELECT * 
+    SELECT *
     FROM batch_image_caption(
-        TABLE(SELECT url FROM images), 
+        TABLE(SELECT url FROM images),
         10,  -- batch_size
-        'your-api-token', 
+        'your-api-token',
         'https://your-endpoint.com/score'
     )
 """).show()
@@ -87,9 +99,14 @@ spark.sql("""
 
 ## Documentation
 
-For more detailed documentation, including design docs and guides for Unity Catalog integration, see the [docs/](docs/) directory.
+For more detailed Python UDTF documentation, including design documents and guides for Unity Catalog integration, see the [`docs/`](docs/) directory.
 
 - [Unity Catalog Guide](docs/unity_catalog_udtf.md)
+- [Meta Conversions API design](docs/design/meta_capi.md)
+
+## Contributing
+
+Contributions are welcome. Read the [contributing guide](CONTRIBUTING.md) for development setup, testing requirements, and the process for proposing a new Python UDTF.
 
 ## Development
 
@@ -176,9 +193,9 @@ To build and publish the package to PyPI:
    ```
    Note: You will need to configure your PyPI credentials (API token) either via environment variables (`UV_PUBLISH_TOKEN`) or following `uv`'s authentication documentation.
 
-## Cursor Skills
+## Codex Skills
 
-This repository includes Cursor skills to help with common development tasks. Skills are available in `.cursor/skills/`.
+This repository includes Codex skills for common development tasks in [`.agents/skills/`](.agents/skills/). Invoke a skill by mentioning its `$skill-name` in your Codex prompt.
 
 ### create-udtf
 
@@ -190,9 +207,13 @@ Use this skill when you want to **create, write, or generate a new PySpark UDTF*
 4. **Registration** – Add the UDTF to `src/pyspark_udtf/udtfs/__init__.py`
 5. **Testing** – Add tests in `tests/test_<udtf_name>.py`
 
-**When to use:** Ask Cursor to create a new UDTF, or say "use the create-udtf skill" when describing the UDTF you want to build.
+**When to use:** Ask Codex to create a new UDTF or explicitly invoke `$create-udtf` when describing the UDTF you want to build.
 
 **Reference implementations:**
 
 - Simple UDTF: `src/pyspark_udtf/udtfs/fuzzy_match.py`
 - Complex UDTF (buffering, external API): `src/pyspark_udtf/udtfs/meta_capi.py`
+
+### release-package
+
+Explicitly invoke `$release-package` to bump the package version, build the distributions, publish the confirmed artifacts to PyPI, and push the release commit. The skill requires confirmation before publishing or force-pushing.
